@@ -1,1 +1,16 @@
-[]
+[
+  {
+    "id": "1414542711683289152",
+    "name": "R4ZE",
+    "role": "Founder",
+    "pfp": "https://cdn.discordapp.com/avatars/1414542711683289152/e8f1c869802e04f11c4949e4ba3f37fe.png?size=512",
+    "desc": "The visionary behind the Assembly, dedicated to global excellence."
+  },
+  {
+    "id": "1019661131045945354",
+    "name": "TBX",
+    "role": "Co-Founder",
+    "pfp": "https://cdn.discordapp.com/avatars/1019661131045945354/cefc8a0108680fed9bc7398cbdde3abe.png?size=512",
+    "desc": "Supporting our growth and fostering international collaboration."
+  }
+]

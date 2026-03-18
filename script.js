@@ -188,11 +188,13 @@ document.addEventListener('DOMContentLoaded', () => {
 
     // --- GitHub Persistence Core ---
     async function commitToGitHub(updatedMembers) {
+        // Always save locally so the preview stays updated even without a token
+        localStorage.setItem('unga_personnel', JSON.stringify(updatedMembers));
+        
         const token = sessionStorage.getItem('unga_gh_token');
         if (!token) {
-            alert("No GitHub token found. Your changes will only be temporary for this session.");
-            localStorage.setItem('unga_personnel', JSON.stringify(updatedMembers));
-            return true;
+            alert("Changes saved locally! To make them global for all visitors, please provide your GitHub Token in the login menu.");
+            return true; 
         }
 
         try {
@@ -334,20 +336,34 @@ document.addEventListener('DOMContentLoaded', () => {
 
     // --- Load members from GitHub (Global) ---
     (async () => {
+        const hasToken = !!sessionStorage.getItem('unga_gh_token');
+        const localData = JSON.parse(localStorage.getItem('unga_personnel'));
+
         try {
             // 1. Fetch from GitHub Repo directly (Cache Buster to ensure fresh data)
             const timestamp = new Date().getTime();
             const res = await fetch(`https://raw.githubusercontent.com/${GITHUB_REPO}/main/${DATA_PATH}?t=${timestamp}`);
             
             if (res.ok) {
-                allMembers = await res.json();
+                const cloudMembers = await res.json();
+                
+                // If we are just testing locally (no token), show our local changes
+                // Otherwise, always prioritize the global GitHub database
+                if (!hasToken && localData && localData.length !== cloudMembers.length) {
+                    allMembers = localData;
+                } else {
+                    allMembers = cloudMembers;
+                }
             } else {
                 throw new Error("Repo file missing");
             }
         } catch(e) {
             console.warn("Global load failed, using local backup.");
-            allMembers = JSON.parse(localStorage.getItem('unga_personnel') || '[]');
+            allMembers = localData || [];
         }
+        
+        // Ensure team grid is clear before rendering
+        if (teamGrid) teamGrid.innerHTML = '';
         allMembers.forEach((m, i) => renderMember(m, i));
     })();
 });
