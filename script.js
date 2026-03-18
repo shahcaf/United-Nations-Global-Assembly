@@ -196,15 +196,15 @@ document.addEventListener('DOMContentLoaded', () => {
     // Change this to your Render URL once deployed (e.g. https://unga-bot.onrender.com)
     const BOT_SERVER = 'http://localhost:3000';
     let manualPfpUrl = '';
+    let allMembers = []; // Cache of server members
 
     if (addPersonnelForm) {
         addPersonnelForm.addEventListener('submit', async (e) => {
             e.preventDefault();
             const discId = document.getElementById('new-id').value.trim();
-            let pfpUrl = manualPfpUrl; // Use manually set URL first
+            let pfpUrl = manualPfpUrl;
 
             if (!pfpUrl) {
-                // Fetch from the bot server — same source as the preview
                 try {
                     const res = await fetch(`${BOT_SERVER}/avatar/${discId}`);
                     const data = await res.json();
@@ -212,7 +212,6 @@ document.addEventListener('DOMContentLoaded', () => {
                 } catch (err) {}
             }
 
-            // Final fallback if everything fails
             if (!pfpUrl) {
                 pfpUrl = `https://ui-avatars.com/api/?name=${encodeURIComponent(document.getElementById('new-name').value)}&background=004b87&color=d4af37&size=512`;
             }
@@ -225,14 +224,26 @@ document.addEventListener('DOMContentLoaded', () => {
                 desc: 'Official UNGA Personnel'
             };
 
-            let members = JSON.parse(localStorage.getItem('unga_personnel') || '[]');
-            if (editingIndex > -1) {
-                members[editingIndex] = memberData;
-            } else {
-                members.push(memberData);
+            const pass = ADMIN_PASS;
+            try {
+                if (editingIndex > -1) {
+                    await fetch(`${BOT_SERVER}/members/${editingIndex}`, {
+                        method: 'PUT',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({ pass, member: memberData })
+                    });
+                } else {
+                    await fetch(`${BOT_SERVER}/members`, {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({ pass, member: memberData })
+                    });
+                }
+            } catch (err) {
+                alert('Error saving personnel. Is the bot server running?');
+                return;
             }
-            
-            localStorage.setItem('unga_personnel', JSON.stringify(members));
+
             window.location.reload();
         });
     }
@@ -270,25 +281,24 @@ document.addEventListener('DOMContentLoaded', () => {
         teamGrid.appendChild(card);
     }
 
-    window.removePersonnel = (index) => {
+    window.removePersonnel = async (index) => {
         if (confirm('Are you sure you want to remove this official?')) {
-            let members = JSON.parse(localStorage.getItem('unga_personnel') || '[]');
-            members.splice(index, 1);
-            localStorage.setItem('unga_personnel', JSON.stringify(members));
+            await fetch(`${BOT_SERVER}/members/${index}`, {
+                method: 'DELETE',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ pass: ADMIN_PASS })
+            });
             window.location.reload();
         }
     };
 
     window.editPersonnel = (index) => {
-        let members = JSON.parse(localStorage.getItem('unga_personnel') || '[]');
-        const member = members[index];
+        const member = allMembers[index];
         editingIndex = index;
-
         document.getElementById('new-id').value = member.id;
         document.getElementById('new-name').value = member.name;
         document.getElementById('new-role').value = member.role;
         manualPfpUrl = member.pfp;
-
         personnelModal.querySelector('h3').textContent = "Update Personnel Profile";
         updatePfpPreview(member.pfp);
         personnelModal.style.display = 'flex';
@@ -299,10 +309,9 @@ document.addEventListener('DOMContentLoaded', () => {
     const nameInput = document.getElementById('new-name');
     const pfpPreviewContainer = document.getElementById('pfp-preview-container');
 
-
     if (idInput) {
         idInput.addEventListener('input', async () => {
-            if (manualPfpUrl) return; // Don't overwrite manual
+            if (manualPfpUrl) return;
             const discId = idInput.value.trim();
             if (discId.length >= 17 && discId.length <= 19) {
                 try {
@@ -343,13 +352,23 @@ document.addEventListener('DOMContentLoaded', () => {
     // Modal Reset on close
     if (closePersonnelModal) {
         closePersonnelModal.addEventListener('click', () => {
+            manualPfpUrl = '';
             updatePfpPreview('');
         });
     }
 
-    // Load saved members
-    const savedMembers = JSON.parse(localStorage.getItem('unga_personnel') || '[]');
-    savedMembers.forEach((m, i) => renderMember(m, i));
+    // Load members from server (visible to ALL visitors)
+    (async () => {
+        try {
+            const res = await fetch(`${BOT_SERVER}/members`);
+            allMembers = await res.json();
+            allMembers.forEach((m, i) => renderMember(m, i));
+        } catch(e) {
+            // Server offline fallback: load from localStorage
+            allMembers = JSON.parse(localStorage.getItem('unga_personnel') || '[]');
+            allMembers.forEach((m, i) => renderMember(m, i));
+        }
+    })();
 });
 
 
