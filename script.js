@@ -148,7 +148,9 @@ document.addEventListener('DOMContentLoaded', () => {
             e.preventDefault();
             if (authPass.value === ADMIN_PASS) {
                 sessionStorage.setItem('unga_admin_active', 'true');
-                if (ghTokenInput.value) sessionStorage.setItem('unga_gh_token', ghTokenInput.value);
+                if (ghTokenInput.value) {
+                    sessionStorage.setItem('unga_gh_token', ghTokenInput.value.trim());
+                }
                 authModal.style.display = 'none';
                 updateAdminUI(true);
                 authPass.value = '';
@@ -236,6 +238,7 @@ document.addEventListener('DOMContentLoaded', () => {
             
             const commitData = await commitRes.json();
             ghFileSha = commitData.content.sha;
+            alert("Global Personnel Update Successful! Changes are live.");
             return true;
         } catch (err) {
             console.error(err);
