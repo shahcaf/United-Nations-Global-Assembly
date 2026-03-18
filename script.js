@@ -198,36 +198,48 @@ document.addEventListener('DOMContentLoaded', () => {
         }
 
         try {
-            // 1. Get current SHA if not cached
-            if (!ghFileSha) {
-                const headRes = await fetch(`https://api.github.com/repos/${GITHUB_REPO}/contents/${DATA_PATH}`, {
-                    headers: { Authorization: `token ${token}` }
-                });
-                const headData = await headRes.json();
-                ghFileSha = headData.sha;
+            // 1. Get current SHA every time to prevent "Stale Data" errors
+            const headRes = await fetch(`https://api.github.com/repos/${GITHUB_REPO}/contents/${DATA_PATH}`, {
+                headers: { 
+                    'Authorization': `Bearer ${token}`,
+                    'Accept': 'application/vnd.github.v3+json'
+                }
+            });
+            
+            if (!headRes.ok) {
+                const errData = await headRes.json();
+                throw new Error(`Auth Error: ${errData.message || 'Check your token permissions'}`);
             }
+
+            const headData = await headRes.json();
+            ghFileSha = headData.sha;
 
             // 2. Commit update
             const commitRes = await fetch(`https://api.github.com/repos/${GITHUB_REPO}/contents/${DATA_PATH}`, {
                 method: 'PUT',
                 headers: { 
-                    'Authorization': `token ${token}`,
-                    'Content-Type': 'application/json'
+                    'Authorization': `Bearer ${token}`,
+                    'Content-Type': 'application/json',
+                    'Accept': 'application/vnd.github.v3+json'
                 },
                 body: JSON.stringify({
-                    message: `Personnel update via website (${new Date().toLocaleString()})`,
+                    message: `Personnel update via UNGA website`,
                     content: btoa(unescape(encodeURIComponent(JSON.stringify(updatedMembers, null, 2)))),
                     sha: ghFileSha
                 })
             });
 
-            if (!commitRes.ok) throw new Error("Committ failed");
+            if (!commitRes.ok) {
+                const errData = await commitRes.json();
+                throw new Error(`Sync Error: ${errData.message}`);
+            }
+            
             const commitData = await commitRes.json();
             ghFileSha = commitData.content.sha;
             return true;
         } catch (err) {
             console.error(err);
-            alert("Global sync failed. Check your GitHub Token permissions.");
+            alert(`Sync Failed: ${err.message}\n\nMake sure your token has "Contents: Read & Write" permissions for this repo.`);
             return false;
         }
     }
