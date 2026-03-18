@@ -26,5 +26,12 @@
     "role": "Tester",
     "pfp": "https://ui-avatars.com/api/?name=Global%20Success&background=004b87&color=d4af37&size=512",
     "desc": "Official UNGA Personnel"
+  },
+  {
+    "id": "789",
+    "name": "Global Success",
+    "role": "Tester",
+    "pfp": "https://ui-avatars.com/api/?name=Global%20Success&background=004b87&color=d4af37&size=512",
+    "desc": "Official UNGA Personnel"
   }
 ]
