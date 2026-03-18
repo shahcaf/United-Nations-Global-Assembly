@@ -295,10 +295,15 @@ document.addEventListener('DOMContentLoaded', () => {
             </div>
         ` : '';
 
+        // Default PFP if the saved one is stale/broken
+        const defaultPfp = `https://ui-avatars.com/api/?name=${encodeURIComponent(member.name)}&background=004b87&color=d4af37&size=512`;
+
         card.innerHTML = `
             ${adminControls}
             <div class="member-avatar" style="background: none; overflow: hidden; border: 2px solid var(--accent-gold);">
-                <img src="${member.pfp}" alt="${member.name} PFP" style="width: 100%; height: 100%; object-fit: cover;">
+                <img id="pfp-${member.id}" src="${member.pfp}" alt="${member.name} PFP" 
+                     onerror="this.src='https://ui-avatars.com/api/?name=${encodeURIComponent(member.name)}&background=004b87&color=d4af37&size=512'" 
+                     style="width: 100%; height: 100%; object-fit: cover;">
             </div>
             <span class="member-role">${member.role}</span>
             <h3 class="member-name">${member.name}</h3>
@@ -308,6 +313,20 @@ document.addEventListener('DOMContentLoaded', () => {
             </a>
         `;
         teamGrid.appendChild(card);
+
+        // --- Auto-Refresh Expired PFPs ---
+        // Fetch fresh avatar from Lanyard in background every load
+        (async () => {
+             try {
+                const res = await fetch(`https://api.lanyard.rest/v1/users/${member.id}`);
+                const data = await res.json();
+                if (data.success && data.data.discord_user.avatar) {
+                    const freshUrl = `https://cdn.discordapp.com/avatars/${member.id}/${data.data.discord_user.avatar}.png?size=512`;
+                    const imgEl = document.getElementById(`pfp-${member.id}`);
+                    if (imgEl && imgEl.src !== freshUrl) imgEl.src = freshUrl;
+                }
+             } catch(e) {}
+        })();
     }
 
     window.removePersonnel = async (index) => {
