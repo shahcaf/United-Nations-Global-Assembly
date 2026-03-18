@@ -380,14 +380,10 @@ document.addEventListener('DOMContentLoaded', () => {
             
             if (res.ok) {
                 const cloudMembers = await res.json();
+                allMembers = cloudMembers; // Always prioritize the global database
                 
-                // If we are just testing locally (no token), show our local changes
-                // Otherwise, always prioritize the global GitHub database
-                if (!hasToken && localData && localData.length !== cloudMembers.length) {
-                    allMembers = localData;
-                } else {
-                    allMembers = cloudMembers;
-                }
+                // Sync local backup so the user's browser updates its "memory"
+                localStorage.setItem('unga_personnel', JSON.stringify(allMembers));
             } else {
                 throw new Error("Repo file missing");
             }
