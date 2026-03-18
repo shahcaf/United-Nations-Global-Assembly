@@ -4,20 +4,26 @@ document.addEventListener('DOMContentLoaded', () => {
     const heroTagline = document.querySelector('.hero-tagline');
     const ctaButton = document.querySelector('.cta-button');
 
-    setTimeout(() => {
-        heroTitle.style.opacity = '1';
-        heroTitle.style.transform = 'translateY(0)';
-    }, 300);
+    if (heroTitle) {
+        setTimeout(() => {
+            heroTitle.style.opacity = '1';
+            heroTitle.style.transform = 'translateY(0)';
+        }, 300);
+    }
 
-    setTimeout(() => {
-        heroTagline.style.opacity = '1';
-        heroTagline.style.transform = 'translateY(0)';
-    }, 600);
+    if (heroTagline) {
+        setTimeout(() => {
+            heroTagline.style.opacity = '1';
+            heroTagline.style.transform = 'translateY(0)';
+        }, 600);
+    }
 
-    setTimeout(() => {
-        ctaButton.style.opacity = '1';
-        ctaButton.style.transform = 'translateY(0)';
-    }, 900);
+    if (ctaButton) {
+        setTimeout(() => {
+            ctaButton.style.opacity = '1';
+            ctaButton.style.transform = 'translateY(0)';
+        }, 900);
+    }
 
     // 2. Intersection Observer for Reveal Elements
     const revealElements = document.querySelectorAll('.reveal');
@@ -92,14 +98,258 @@ document.addEventListener('DOMContentLoaded', () => {
 
     // 5. Hero Mouse Parallax
     const hero = document.querySelector('.hero');
-    hero.addEventListener('mousemove', (e) => {
-        const { clientX, clientY } = e;
-        const { innerWidth, innerHeight } = window;
-        const moveX = (clientX - innerWidth / 2) / 30;
-        const moveY = (clientY - innerHeight / 2) / 30;
+    if (hero) {
+        hero.addEventListener('mousemove', (e) => {
+            const { clientX, clientY } = e;
+            const { innerWidth, innerHeight } = window;
+            const moveX = (clientX - innerWidth / 2) / 30;
+            const moveY = (clientY - innerHeight / 2) / 30;
 
-        heroTitle.style.transform = `translate(${moveX}px, ${moveY}px)`;
-        heroTagline.style.transform = `translate(${moveX * 0.5}px, ${moveY * 0.5}px)`;
-    });
+            if (heroTitle) heroTitle.style.transform = `translate(${moveX}px, ${moveY}px)`;
+            if (heroTagline) heroTagline.style.transform = `translate(${moveX * 0.5}px, ${moveY * 0.5}px)`;
+        });
+    }
+    // 6. Administrative Tools (Integrated)
+    const staffAccessLink = document.getElementById('staff-access-link');
+    const authModal = document.getElementById('auth-modal');
+    const authForm = document.getElementById('auth-form');
+    const authPass = document.getElementById('auth-pass');
+    const authError = document.getElementById('auth-error');
+    const closeAuth = document.getElementById('close-auth');
+    
+    const addMemberBtn = document.getElementById('add-member-btn');
+    const logoutBtn = document.getElementById('admin-logout-btn');
+    const personnelModal = document.getElementById('personnel-modal');
+    const closePersonnelModal = document.getElementById('close-personnel-modal');
+    const addPersonnelForm = document.getElementById('add-personnel-form');
+    const teamGrid = document.getElementById('team-grid');
 
+    const ADMIN_PASS = "190472";
+
+    function updateAdminUI(isActive) {
+        if (addMemberBtn) addMemberBtn.style.display = isActive ? 'block' : 'none';
+        if (logoutBtn) logoutBtn.style.display = isActive ? 'block' : 'none';
+    }
+
+    // Check session
+    if (sessionStorage.getItem('unga_admin_active') === 'true') {
+        updateAdminUI(true);
+    }
+
+    // Auth Modal Controls
+    if (staffAccessLink) {
+        staffAccessLink.addEventListener('click', (e) => {
+            e.preventDefault();
+            authModal.style.display = 'flex';
+        });
+    }
+
+    if (closeAuth) {
+        closeAuth.addEventListener('click', () => {
+            authModal.style.display = 'none';
+        });
+    }
+
+    if (authForm) {
+        authForm.addEventListener('submit', (e) => {
+            e.preventDefault();
+            if (authPass.value === ADMIN_PASS) {
+                sessionStorage.setItem('unga_admin_active', 'true');
+                authModal.style.display = 'none';
+                updateAdminUI(true);
+                authPass.value = '';
+                window.location.reload(); // Refresh to show edit/delete buttons
+            } else {
+                authError.textContent = "Invalid Authorization Code";
+                setTimeout(() => authError.textContent = "", 2000);
+            }
+        });
+    }
+
+    if (logoutBtn) {
+        logoutBtn.addEventListener('click', () => {
+            sessionStorage.removeItem('unga_admin_active');
+            window.location.reload();
+        });
+    }
+
+
+    let editingIndex = -1;
+
+    // Personnel Modal Controls
+    if (addMemberBtn) {
+        addMemberBtn.addEventListener('click', () => {
+            editingIndex = -1;
+            addPersonnelForm.reset();
+            personnelModal.querySelector('h3').textContent = "Add Assembly Personnel";
+            personnelModal.style.display = 'flex';
+        });
+    }
+
+    if (closePersonnelModal) {
+        closePersonnelModal.addEventListener('click', () => {
+            personnelModal.style.display = 'none';
+        });
+    }
+
+    // Personnel Deployment
+    // Change this to your Render URL once deployed (e.g. https://unga-bot.onrender.com)
+    const BOT_SERVER = 'http://localhost:3000';
+    let manualPfpUrl = '';
+
+    if (addPersonnelForm) {
+        addPersonnelForm.addEventListener('submit', async (e) => {
+            e.preventDefault();
+            const discId = document.getElementById('new-id').value.trim();
+            let pfpUrl = manualPfpUrl; // Use manually set URL first
+
+            if (!pfpUrl) {
+                // Fetch from the bot server — same source as the preview
+                try {
+                    const res = await fetch(`${BOT_SERVER}/avatar/${discId}`);
+                    const data = await res.json();
+                    pfpUrl = data.pfp || '';
+                } catch (err) {}
+            }
+
+            // Final fallback if everything fails
+            if (!pfpUrl) {
+                pfpUrl = `https://ui-avatars.com/api/?name=${encodeURIComponent(document.getElementById('new-name').value)}&background=004b87&color=d4af37&size=512`;
+            }
+
+            const memberData = {
+                id: discId,
+                name: document.getElementById('new-name').value,
+                role: document.getElementById('new-role').value,
+                pfp: pfpUrl,
+                desc: 'Official UNGA Personnel'
+            };
+
+            let members = JSON.parse(localStorage.getItem('unga_personnel') || '[]');
+            if (editingIndex > -1) {
+                members[editingIndex] = memberData;
+            } else {
+                members.push(memberData);
+            }
+            
+            localStorage.setItem('unga_personnel', JSON.stringify(members));
+            window.location.reload();
+        });
+    }
+
+    function renderMember(member, index) {
+        if (!teamGrid) return;
+        const isAdmin = sessionStorage.getItem('unga_admin_active') === 'true';
+        const card = document.createElement('div');
+        card.className = 'team-card reveal active';
+        card.style.position = 'relative';
+        
+        let adminControls = '';
+        if (isAdmin) {
+            adminControls = `
+                <div style="position: absolute; top: 15px; right: 15px; display: flex; gap: 8px; z-index: 10;">
+                    <button onclick="editPersonnel(${index})" style="background: rgba(255,255,255,0.1); border: 1px solid var(--glass-border); color: var(--accent-gold); padding: 5px 8px; border-radius: 5px; cursor: pointer;"><i class="fas fa-edit"></i></button>
+                    <button onclick="removePersonnel(${index})" style="background: rgba(255,255,255,0.1); border: 1px solid var(--glass-border); color: #ff4d4d; padding: 5px 8px; border-radius: 5px; cursor: pointer;"><i class="fas fa-trash"></i></button>
+                </div>
+            `;
+        }
+
+        card.innerHTML = `
+            ${adminControls}
+            <div class="member-avatar" style="background: none; overflow: hidden; border: 2px solid var(--accent-gold);">
+                <img src="${member.pfp}" alt="${member.name} PFP" style="width: 100%; height: 100%; object-fit: cover;">
+            </div>
+            <span class="member-role">${member.role}</span>
+            <h3 class="member-name">${member.name}</h3>
+            <p style="color: var(--text-gray); margin-bottom: 25px;">${member.desc}</p>
+            <a href="https://discord.com/users/${member.id}" target="_blank" class="dm-button">
+                <i class="fab fa-discord"></i>
+                Send MD
+            </a>
+        `;
+        teamGrid.appendChild(card);
+    }
+
+    window.removePersonnel = (index) => {
+        if (confirm('Are you sure you want to remove this official?')) {
+            let members = JSON.parse(localStorage.getItem('unga_personnel') || '[]');
+            members.splice(index, 1);
+            localStorage.setItem('unga_personnel', JSON.stringify(members));
+            window.location.reload();
+        }
+    };
+
+    window.editPersonnel = (index) => {
+        let members = JSON.parse(localStorage.getItem('unga_personnel') || '[]');
+        const member = members[index];
+        editingIndex = index;
+
+        document.getElementById('new-id').value = member.id;
+        document.getElementById('new-name').value = member.name;
+        document.getElementById('new-role').value = member.role;
+        manualPfpUrl = member.pfp;
+
+        personnelModal.querySelector('h3').textContent = "Update Personnel Profile";
+        updatePfpPreview(member.pfp);
+        personnelModal.style.display = 'flex';
+    };
+
+    // Auto-fetch PFP from Bot Server when ID is typed
+    const idInput = document.getElementById('new-id');
+    const nameInput = document.getElementById('new-name');
+    const pfpPreviewContainer = document.getElementById('pfp-preview-container');
+
+
+    if (idInput) {
+        idInput.addEventListener('input', async () => {
+            if (manualPfpUrl) return; // Don't overwrite manual
+            const discId = idInput.value.trim();
+            if (discId.length >= 17 && discId.length <= 19) {
+                try {
+                    const res = await fetch(`${BOT_SERVER}/avatar/${discId}`);
+                    const data = await res.json();
+                    if (data.pfp) updatePfpPreview(data.pfp);
+                } catch(e) {}
+            } else {
+                updatePfpPreview('');
+            }
+        });
+    }
+
+    // Manual override: click circle to paste a URL directly
+    if (pfpPreviewContainer) {
+        pfpPreviewContainer.addEventListener('click', () => {
+            const url = prompt("Paste a direct image URL to override the avatar:", manualPfpUrl);
+            if (url !== null && url.trim() !== '') {
+                manualPfpUrl = url.trim();
+                updatePfpPreview(manualPfpUrl);
+            }
+        });
+    }
+
+    function updatePfpPreview(url) {
+        const pfpPreviewImg = document.getElementById('pfp-preview-img');
+        const pfpPlaceholder = document.getElementById('pfp-placeholder-icon');
+        if (url && url.length > 5) {
+            pfpPreviewImg.src = url;
+            pfpPreviewImg.style.display = 'block';
+            pfpPlaceholder.style.display = 'none';
+        } else {
+            pfpPreviewImg.style.display = 'none';
+            pfpPlaceholder.style.display = 'block';
+        }
+    }
+
+    // Modal Reset on close
+    if (closePersonnelModal) {
+        closePersonnelModal.addEventListener('click', () => {
+            updatePfpPreview('');
+        });
+    }
+
+    // Load saved members
+    const savedMembers = JSON.parse(localStorage.getItem('unga_personnel') || '[]');
+    savedMembers.forEach((m, i) => renderMember(m, i));
 });
+
+

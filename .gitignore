@@ -1,0 +1,5 @@
+# Never commit the real .env with the bot token
+bot-server/.env
+
+# Node modules
+bot-server/node_modules/
