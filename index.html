@@ -135,12 +135,13 @@
             <div class="about-card" style="width: 100%; max-width: 350px; text-align: center;">
                 <i class="fas fa-lock" style="font-size: 2rem; color: var(--accent-gold); margin-bottom: 20px;"></i>
                 <h4 style="margin-bottom: 25px;">Administrative Access Required</h4>
-                <form id="auth-form" style="display: flex; flex-direction: column; gap: 10px;">
-                    <input type="password" id="auth-pass" placeholder="Authorization Code" style="background: var(--glass-bg); border: 1px solid var(--glass-border); padding: 12px; border-radius: 8px; color: white; text-align: center;" required>
-                    <button type="submit" class="cta-button" style="width: 100%; opacity: 1; transform: none;">Verify</button>
-                    <div id="auth-error" style="color: #ff4d4d; font-size: 0.8rem; height: 1.2rem;"></div>
-                    <button type="button" id="close-auth" style="background: none; border: none; color: var(--text-gray); font-size: 0.8rem; cursor: pointer; margin-top: 10px;">Cancel Access</button>
+                <form id="auth-form" style="display: flex; flex-direction: column; gap: 15px;">
+                    <input type="password" id="auth-pass" placeholder="Authorization Code" style="background: var(--glass-bg); border: 1px solid var(--glass-border); padding: 12px; border-radius: 8px; color: white;" required>
+                    <input type="password" id="gh-token" placeholder="GitHub Personal Access Token (for global sync)" style="background: var(--glass-bg); border: 1px solid var(--glass-border); padding: 12px; border-radius: 8px; color: white; font-size: 0.8rem;">
+                    <button type="submit" class="cta-button" style="width: 100%; opacity: 1; transform: none; margin-top: 10px;">Verify Access</button>
+                    <p id="auth-error" style="color: #ff4d4d; font-size: 0.8rem; text-align: center; height: 1rem;"></p>
                 </form>
+    <button type="button" id="close-auth" style="background: none; border: none; color: var(--text-gray); font-size: 0.8rem; cursor: pointer; margin-top: 10px;">Cancel Access</button>
             </div>
         </div>
 

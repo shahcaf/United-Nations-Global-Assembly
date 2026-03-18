@@ -109,11 +109,12 @@ document.addEventListener('DOMContentLoaded', () => {
             if (heroTagline) heroTagline.style.transform = `translate(${moveX * 0.5}px, ${moveY * 0.5}px)`;
         });
     }
-    // 6. Administrative Tools (Integrated)
+    // 6. Administrative Tools (Integrated with GitHub DB)
     const staffAccessLink = document.getElementById('staff-access-link');
     const authModal = document.getElementById('auth-modal');
     const authForm = document.getElementById('auth-form');
     const authPass = document.getElementById('auth-pass');
+    const ghTokenInput = document.getElementById('gh-token'); // Added in HTML
     const authError = document.getElementById('auth-error');
     const closeAuth = document.getElementById('close-auth');
     
@@ -125,6 +126,8 @@ document.addEventListener('DOMContentLoaded', () => {
     const teamGrid = document.getElementById('team-grid');
 
     const ADMIN_PASS = "190472";
+    const GITHUB_REPO = "shahcaf/United-Nations-Global-Assembly";
+    const DATA_PATH = "members.json";
 
     function updateAdminUI(isActive) {
         if (addMemberBtn) addMemberBtn.style.display = isActive ? 'block' : 'none';
@@ -137,28 +140,19 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 
     // Auth Modal Controls
-    if (staffAccessLink) {
-        staffAccessLink.addEventListener('click', (e) => {
-            e.preventDefault();
-            authModal.style.display = 'flex';
-        });
-    }
-
-    if (closeAuth) {
-        closeAuth.addEventListener('click', () => {
-            authModal.style.display = 'none';
-        });
-    }
+    if (staffAccessLink) staffAccessLink.addEventListener('click', (e) => (e.preventDefault(), authModal.style.display = 'flex'));
+    if (closeAuth) closeAuth.addEventListener('click', () => (authModal.style.display = 'none'));
 
     if (authForm) {
         authForm.addEventListener('submit', (e) => {
             e.preventDefault();
             if (authPass.value === ADMIN_PASS) {
                 sessionStorage.setItem('unga_admin_active', 'true');
+                if (ghTokenInput.value) sessionStorage.setItem('unga_gh_token', ghTokenInput.value);
                 authModal.style.display = 'none';
                 updateAdminUI(true);
                 authPass.value = '';
-                window.location.reload(); // Refresh to show edit/delete buttons
+                window.location.reload();
             } else {
                 authError.textContent = "Invalid Authorization Code";
                 setTimeout(() => authError.textContent = "", 2000);
@@ -169,12 +163,13 @@ document.addEventListener('DOMContentLoaded', () => {
     if (logoutBtn) {
         logoutBtn.addEventListener('click', () => {
             sessionStorage.removeItem('unga_admin_active');
+            sessionStorage.removeItem('unga_gh_token');
             window.location.reload();
         });
     }
 
-
     let editingIndex = -1;
+    let ghFileSha = null; // Important for updating existing files
 
     // Personnel Modal Controls
     if (addMemberBtn) {
@@ -186,17 +181,54 @@ document.addEventListener('DOMContentLoaded', () => {
         });
     }
 
-    if (closePersonnelModal) {
-        closePersonnelModal.addEventListener('click', () => {
-            personnelModal.style.display = 'none';
-        });
-    }
+    if (closePersonnelModal) closePersonnelModal.addEventListener('click', () => (personnelModal.style.display = 'none'));
 
-    // Personnel Deployment
-    // Change this to your Render URL once deployed (e.g. https://unga-bot.onrender.com)
-    const BOT_SERVER = 'http://localhost:3000';
     let manualPfpUrl = '';
-    let allMembers = []; // Cache of server members
+    let allMembers = [];
+
+    // --- GitHub Persistence Core ---
+    async function commitToGitHub(updatedMembers) {
+        const token = sessionStorage.getItem('unga_gh_token');
+        if (!token) {
+            alert("No GitHub token found. Your changes will only be temporary for this session.");
+            localStorage.setItem('unga_personnel', JSON.stringify(updatedMembers));
+            return true;
+        }
+
+        try {
+            // 1. Get current SHA if not cached
+            if (!ghFileSha) {
+                const headRes = await fetch(`https://api.github.com/repos/${GITHUB_REPO}/contents/${DATA_PATH}`, {
+                    headers: { Authorization: `token ${token}` }
+                });
+                const headData = await headRes.json();
+                ghFileSha = headData.sha;
+            }
+
+            // 2. Commit update
+            const commitRes = await fetch(`https://api.github.com/repos/${GITHUB_REPO}/contents/${DATA_PATH}`, {
+                method: 'PUT',
+                headers: { 
+                    'Authorization': `token ${token}`,
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify({
+                    message: `Personnel update via website (${new Date().toLocaleString()})`,
+                    content: btoa(unescape(encodeURIComponent(JSON.stringify(updatedMembers, null, 2)))),
+                    sha: ghFileSha
+                })
+            });
+
+            if (!commitRes.ok) throw new Error("Committ failed");
+            const commitData = await commitRes.json();
+            ghFileSha = commitData.content.sha;
+            return true;
+        } catch (err) {
+            console.error(err);
+            alert("Global sync failed. Check your GitHub Token permissions.");
+            return false;
+        }
+    }
 
     if (addPersonnelForm) {
         addPersonnelForm.addEventListener('submit', async (e) => {
@@ -204,17 +236,18 @@ document.addEventListener('DOMContentLoaded', () => {
             const discId = document.getElementById('new-id').value.trim();
             let pfpUrl = manualPfpUrl;
 
+            // Fetch avatar from reliable proxy (Lanyard fallback)
             if (!pfpUrl) {
                 try {
-                    const res = await fetch(`${BOT_SERVER}/avatar/${discId}`);
+                    const res = await fetch(`https://api.lanyard.rest/v1/users/${discId}`);
                     const data = await res.json();
-                    pfpUrl = data.pfp || '';
-                } catch (err) {}
+                    if (data.success && data.data.discord_user.avatar) {
+                        pfpUrl = `https://cdn.discordapp.com/avatars/${discId}/${data.data.discord_user.avatar}.png?size=512`;
+                    }
+                } catch(e) {}
             }
 
-            if (!pfpUrl) {
-                pfpUrl = `https://ui-avatars.com/api/?name=${encodeURIComponent(document.getElementById('new-name').value)}&background=004b87&color=d4af37&size=512`;
-            }
+            if (!pfpUrl) pfpUrl = `https://ui-avatars.com/api/?name=${encodeURIComponent(document.getElementById('new-name').value)}&background=004b87&color=d4af37&size=512`;
 
             const memberData = {
                 id: discId,
@@ -224,27 +257,10 @@ document.addEventListener('DOMContentLoaded', () => {
                 desc: 'Official UNGA Personnel'
             };
 
-            const pass = ADMIN_PASS;
-            try {
-                if (editingIndex > -1) {
-                    await fetch(`${BOT_SERVER}/members/${editingIndex}`, {
-                        method: 'PUT',
-                        headers: { 'Content-Type': 'application/json' },
-                        body: JSON.stringify({ pass, member: memberData })
-                    });
-                } else {
-                    await fetch(`${BOT_SERVER}/members`, {
-                        method: 'POST',
-                        headers: { 'Content-Type': 'application/json' },
-                        body: JSON.stringify({ pass, member: memberData })
-                    });
-                }
-            } catch (err) {
-                alert('Error saving personnel. Is the bot server running?');
-                return;
-            }
+            if (editingIndex > -1) allMembers[editingIndex] = memberData;
+            else allMembers.push(memberData);
 
-            window.location.reload();
+            if (await commitToGitHub(allMembers)) window.location.reload();
         });
     }
 
@@ -255,15 +271,12 @@ document.addEventListener('DOMContentLoaded', () => {
         card.className = 'team-card reveal active';
         card.style.position = 'relative';
         
-        let adminControls = '';
-        if (isAdmin) {
-            adminControls = `
-                <div style="position: absolute; top: 15px; right: 15px; display: flex; gap: 8px; z-index: 10;">
-                    <button onclick="editPersonnel(${index})" style="background: rgba(255,255,255,0.1); border: 1px solid var(--glass-border); color: var(--accent-gold); padding: 5px 8px; border-radius: 5px; cursor: pointer;"><i class="fas fa-edit"></i></button>
-                    <button onclick="removePersonnel(${index})" style="background: rgba(255,255,255,0.1); border: 1px solid var(--glass-border); color: #ff4d4d; padding: 5px 8px; border-radius: 5px; cursor: pointer;"><i class="fas fa-trash"></i></button>
-                </div>
-            `;
-        }
+        const adminControls = isAdmin ? `
+            <div style="position: absolute; top: 15px; right: 15px; display: flex; gap: 8px; z-index: 10;">
+                <button onclick="editPersonnel(${index})" style="background: rgba(255,255,255,0.1); border: 1px solid var(--glass-border); color: var(--accent-gold); padding: 5px 8px; border-radius: 5px; cursor: pointer;"><i class="fas fa-edit"></i></button>
+                <button onclick="removePersonnel(${index})" style="background: rgba(255,255,255,0.1); border: 1px solid var(--glass-border); color: #ff4d4d; padding: 5px 8px; border-radius: 5px; cursor: pointer;"><i class="fas fa-trash"></i></button>
+            </div>
+        ` : '';
 
         card.innerHTML = `
             ${adminControls}
@@ -274,8 +287,7 @@ document.addEventListener('DOMContentLoaded', () => {
             <h3 class="member-name">${member.name}</h3>
             <p style="color: var(--text-gray); margin-bottom: 25px;">${member.desc}</p>
             <a href="https://discord.com/users/${member.id}" target="_blank" class="dm-button">
-                <i class="fab fa-discord"></i>
-                Send MD
+                <i class="fab fa-discord"></i> Send MD
             </a>
         `;
         teamGrid.appendChild(card);
@@ -283,12 +295,8 @@ document.addEventListener('DOMContentLoaded', () => {
 
     window.removePersonnel = async (index) => {
         if (confirm('Are you sure you want to remove this official?')) {
-            await fetch(`${BOT_SERVER}/members/${index}`, {
-                method: 'DELETE',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ pass: ADMIN_PASS })
-            });
-            window.location.reload();
+            allMembers.splice(index, 1);
+            if (await commitToGitHub(allMembers)) window.location.reload();
         }
     };
 
@@ -304,35 +312,11 @@ document.addEventListener('DOMContentLoaded', () => {
         personnelModal.style.display = 'flex';
     };
 
-    // Auto-fetch PFP from Bot Server when ID is typed
-    const idInput = document.getElementById('new-id');
-    const nameInput = document.getElementById('new-name');
     const pfpPreviewContainer = document.getElementById('pfp-preview-container');
-
-    if (idInput) {
-        idInput.addEventListener('input', async () => {
-            if (manualPfpUrl) return;
-            const discId = idInput.value.trim();
-            if (discId.length >= 17 && discId.length <= 19) {
-                try {
-                    const res = await fetch(`${BOT_SERVER}/avatar/${discId}`);
-                    const data = await res.json();
-                    if (data.pfp) updatePfpPreview(data.pfp);
-                } catch(e) {}
-            } else {
-                updatePfpPreview('');
-            }
-        });
-    }
-
-    // Manual override: click circle to paste a URL directly
     if (pfpPreviewContainer) {
         pfpPreviewContainer.addEventListener('click', () => {
-            const url = prompt("Paste a direct image URL to override the avatar:", manualPfpUrl);
-            if (url !== null && url.trim() !== '') {
-                manualPfpUrl = url.trim();
-                updatePfpPreview(manualPfpUrl);
-            }
+            const url = prompt("Paste PFP URL override:", manualPfpUrl);
+            if (url !== null) { manualPfpUrl = url; updatePfpPreview(url); }
         });
     }
 
@@ -340,34 +324,31 @@ document.addEventListener('DOMContentLoaded', () => {
         const pfpPreviewImg = document.getElementById('pfp-preview-img');
         const pfpPlaceholder = document.getElementById('pfp-placeholder-icon');
         if (url && url.length > 5) {
-            pfpPreviewImg.src = url;
-            pfpPreviewImg.style.display = 'block';
-            pfpPlaceholder.style.display = 'none';
+            pfpPreviewImg.src = url; pfpPreviewImg.style.display = 'block'; pfpPlaceholder.style.display = 'none';
         } else {
-            pfpPreviewImg.style.display = 'none';
-            pfpPlaceholder.style.display = 'block';
+            pfpPreviewImg.style.display = 'none'; pfpPlaceholder.style.display = 'block';
         }
     }
 
-    // Modal Reset on close
-    if (closePersonnelModal) {
-        closePersonnelModal.addEventListener('click', () => {
-            manualPfpUrl = '';
-            updatePfpPreview('');
-        });
-    }
+    if (closePersonnelModal) closePersonnelModal.addEventListener('click', () => updatePfpPreview(''));
 
-    // Load members from server (visible to ALL visitors)
+    // --- Load members from GitHub (Global) ---
     (async () => {
         try {
-            const res = await fetch(`${BOT_SERVER}/members`);
-            allMembers = await res.json();
-            allMembers.forEach((m, i) => renderMember(m, i));
+            // 1. Fetch from GitHub Repo directly (Cache Buster to ensure fresh data)
+            const timestamp = new Date().getTime();
+            const res = await fetch(`https://raw.githubusercontent.com/${GITHUB_REPO}/main/${DATA_PATH}?t=${timestamp}`);
+            
+            if (res.ok) {
+                allMembers = await res.json();
+            } else {
+                throw new Error("Repo file missing");
+            }
         } catch(e) {
-            // Server offline fallback: load from localStorage
+            console.warn("Global load failed, using local backup.");
             allMembers = JSON.parse(localStorage.getItem('unga_personnel') || '[]');
-            allMembers.forEach((m, i) => renderMember(m, i));
         }
+        allMembers.forEach((m, i) => renderMember(m, i));
     })();
 });
 
