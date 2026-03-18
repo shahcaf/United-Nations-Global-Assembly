@@ -12,5 +12,26 @@
     "role": "Co-Founder",
     "pfp": "https://cdn.discordapp.com/avatars/1019661131045945354/cefc8a0108680fed9bc7398cbdde3abe.png?size=512",
     "desc": "Supporting our growth and fostering international collaboration."
+  },
+  {
+    "id": "456",
+    "name": "Global Sync Test",
+    "role": "Tester",
+    "pfp": "https://ui-avatars.com/api/?name=Global%20Sync%20Test&background=004b87&color=d4af37&size=512",
+    "desc": "Official UNGA Personnel"
+  },
+  {
+    "id": "789",
+    "name": "Global Success",
+    "role": "Tester",
+    "pfp": "https://ui-avatars.com/api/?name=Global%20Success&background=004b87&color=d4af37&size=512",
+    "desc": "Official UNGA Personnel"
+  },
+  {
+    "id": "789",
+    "name": "Global Success",
+    "role": "Tester",
+    "pfp": "https://ui-avatars.com/api/?name=Global%20Success&background=004b87&color=d4af37&size=512",
+    "desc": "Official UNGA Personnel"
   }
 ]
